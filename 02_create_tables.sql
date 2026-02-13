@@ -4,45 +4,89 @@
 USE TransactionMonitoringProject;
 GO
 
---drop tables if they alredy exists for re-run safety)
+--drop tables if they already exist (safe re-run)
 DROP TABLE if EXISTS
-Transactions_table;
-DROP TABLE if EXISTS Clients_table;
+dbo.ClientRiskAssessment_table;
+DROP TABLE if EXISTS
+dbo.Transactions_table; 
+DROP TABLE if EXISTS
+dbo.Clients_table;
+DROP TABLE if EXISTS
+dbo.RiskLevels_table;
 GO
 
-CREATE TABLE Clients_table (
+--Stores predefined risk levels and score ranges--
+CREATE TABLE dbo.RiskLevels_table (
+    RiskLevelID INT IDENTITY(1,1) NOT
+NULL PRIMARY KEY,
+    RiskLevelName NVARCHAR(20) NOT NULL,
+    MinScore INT NOT NULL,
+    MaxScore INT NOT NULL,
+    CONSTRAINT UQ_RiskLevels_RiskLevelName UNIQUE 
+    (RiskLevelName)
+    );
+    GO
+
+--Stores customer master data--
+CREATE TABLE dbo.Clients_table (
     ClientID int IDENTITY(1,1) not null PRIMARY KEY, 
     Name NVARCHAR(50) not null,
     Country NVARCHAR(50) not null,
     Address NVARCHAR(150) not null,
     Onboardingdate date not null,
     DateOfBirth date not null,
-    RiskLevel NVARCHAR(20) not null,
+    RiskLevelID INT not null,
     Status NVARCHAR(20) not null
 
-);
+     CONSTRAINT FK_Clients_RiskLevel
+          FOREIGN KEY (RiskLevelID)
+          REFERENCES
+    dbo.RiskLevels_table(RiskLevelID)
 
+);
 GO
 
-CREATE TABLE Transactions_table (
+--Stores client transactions for monitoring--
+CREATE TABLE dbo.Transactions_table (
     TransactionID int IDENTITY(1,1) NOT NULL PRIMARY KEY,
-    ClientID int NOT NULL,
+    ClientID INT NOT NULL,
     Amount DECIMAL(18,2),
     Currency NVARCHAR(5) NOT NULL,
     Type NVARCHAR(20),
     Status NVARCHAR(20),
-    RiskLevel NVARCHAR(20),
+    RiskLevelID INT NOT NULL,
     TransactionDate datetime NOT NULL,
-
+--Ensures each transaction references a valid client and risk level--
     CONSTRAINT FK_Transactions_clients
          FOREIGN KEY (ClientID)
          REFERENCES
-    dbo.Clients_table(ClientID)
+    dbo.Clients_table(ClientID),
+    CONSTRAINT FK_Transactions_Risklevel
+         FOREIGN KEY (RiskLevelID)
+         REFERENCES
+    dbo.RiskLevels_table(RiskLevelID)
 );
+GO
 
-    GO
+--Stores client risk assessment history--
+  CREATE TABLE dbo.ClientRiskAssessment_table (
+     AssessmentID INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+     ClientID INT NOT NULL,
+     RiskScore INT NOT NULL,
+     RisklevelID INT NOT NULL,
+     Reason NVARCHAR(255) NULL,
+     AssessedAt DATETIME NOT NULL
+DEFAULT GETDATE(),
+--Links assesment to existing client and risk level--
+  CONSTRAINT FK_Assessment_Client
+      FOREIGN KEY (ClientID)
+  REFERENCES dbo.Clients_table(ClientID),
 
---Check table structure==
+       CONSTRAINT FK_assessment_RiskLevel
+         FOREIGN KEY (RiskLevelID)
+   REFERENCES 
+   dbo.RiskLevels_table(RiskLevelID)
+);
+GO
 
-EXEC sp_help 'dbo.clients_table';
-EXEC sp_help 'dbo.Transactions_table';
+
