@@ -12,6 +12,8 @@ dbo.Transactions_table;
 DROP TABLE if EXISTS
 dbo.Clients_table;
 DROP TABLE if EXISTS
+dbo.TransactionType_table;
+DROP TABLE if EXISTS
 dbo.RiskLevels_table;
 GO
 
@@ -26,6 +28,17 @@ NULL PRIMARY KEY,
     (RiskLevelName)
     );
     GO
+--Stores predefined transaction types--
+CREATE TABLE dbo.TransactionType_table (
+    TransactionTypeID INT IDENTITY(1, 1)
+NOT NULL PRIMARY KEY,
+    TransactionTypeName NVARCHAR(50)
+NOT NULL,
+
+    CONSTRAINT UQ_TransactionType_Name
+UNIQUE (TransactionTypeName)
+);
+GO
 
 --Stores customer master data--
 CREATE TABLE dbo.Clients_table (

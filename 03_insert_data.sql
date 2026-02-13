@@ -11,5 +11,16 @@ VALUES
 ('High',70, 100);
 GO
 
+--Seed predefined transaction types--
+INSERT INTO dbo.TransactionType_table
+(TransactionTypeName)
+VALUES
+('Cash Deposit'),
+('Cash Withdrawal'),
+('International Transfer'),
+('Card Payment'),
+('Crypto Transfer');
+GO
 
-SELECT * FROM dbo.RiskLevels_table
+SELECT * FROM dbo.RiskLevels_table;
+SELECT * FROM dbo.TransactionType_table;
