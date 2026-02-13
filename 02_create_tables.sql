@@ -65,7 +65,7 @@ CREATE TABLE dbo.Transactions_table (
     ClientID INT NOT NULL,
     Amount DECIMAL(18,2),
     Currency NVARCHAR(5) NOT NULL,
-    Type NVARCHAR(20),
+    TransactionTypeID INT NOT NULL,
     Status NVARCHAR(20),
     RiskLevelID INT NOT NULL,
     TransactionDate datetime NOT NULL,
@@ -77,7 +77,11 @@ CREATE TABLE dbo.Transactions_table (
     CONSTRAINT FK_Transactions_Risklevel
          FOREIGN KEY (RiskLevelID)
          REFERENCES
-    dbo.RiskLevels_table(RiskLevelID)
+    dbo.RiskLevels_table(RiskLevelID),
+    CONSTRAINT FK_Transactions_TransactionType
+         FOREIGN KEY (TransactionTypeID)
+         REFERENCES
+    dbo.TransactionType_table(TransactionTypeID)
 );
 GO
 
