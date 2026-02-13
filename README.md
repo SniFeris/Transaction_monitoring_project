@@ -107,10 +107,5 @@ Stores client risk assessment history.
 2. Run queries from:
    - `04_queries.sql`
 
----
 
-## 👤 Author
-
-Created by Ivo  
-SQL & AML-focused project
 
