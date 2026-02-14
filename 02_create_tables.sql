@@ -81,7 +81,10 @@ CREATE TABLE dbo.Transactions_table (
     CONSTRAINT FK_Transactions_TransactionType
          FOREIGN KEY (TransactionTypeID)
          REFERENCES
-    dbo.TransactionType_table(TransactionTypeID)
+    dbo.TransactionType_table(TransactionTypeID),
+    CONSTRAINT CK_Transaction_Status
+         CHECK (Status IN
+    ('Pending','Approved','Rejected','Flagged'))
 );
 GO
 
