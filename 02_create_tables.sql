@@ -66,7 +66,9 @@ CREATE TABLE dbo.Transactions_table (
     Amount DECIMAL(18,2),
     Currency NVARCHAR(5) NOT NULL,
     TransactionTypeID INT NOT NULL,
-    Status NVARCHAR(20),
+    Status NVARCHAR(20)
+    CONSTRAINT DF_Transaction_status
+    DEFAULT 'Pending',
     RiskLevelID INT NOT NULL,
     TransactionDate datetime NOT NULL,
 --Ensures each transaction references a valid client and risk level--
