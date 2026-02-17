@@ -6,7 +6,9 @@ GO
 
 --drop tables if they already exist (safe re-run)
 DROP TABLE if EXISTS
-dbo.ClientRiskAssessment_table;
+dbo.Alerts_table; 
+DROP TABLE if EXISTS
+dbo.ClientRiskAssessment_table; 
 DROP TABLE if EXISTS
 dbo.Transactions_table; 
 DROP TABLE if EXISTS
@@ -108,6 +110,29 @@ DEFAULT GETDATE(),
          FOREIGN KEY (RiskLevelID)
    REFERENCES 
    dbo.RiskLevels_table(RiskLevelID)
+);
+GO
+
+--Alerts table stores generated AML alerts--
+CREATE TABLE dbo.Alerts_table (
+    AlertID INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    TransactionID INT NOT NULL,
+    RuleCode NVARCHAR(50) NOT NULL,
+    AlertStatus NVARCHAR(20) NOT NULL
+        CONSTRAINT DF_Alerts_status DEFAULT        
+        ('Open'),
+    CreateAt DATETIME NOT NULL
+        CONSTRAINT DF_Alerts_CreateAt DEFAULT
+        (GETDATE()),
+        CONSTRAINT FK_Alerts_transactions
+            FOREIGN KEY (TransactionID)
+            REFERENCES
+dbo.Transactions_table(TransactionID),
+
+        CONSTRAINT CK_Alerts_status
+           CHECK (AlertStatus IN
+           ('Open', 'Closed', 'Investigating'))
+
 );
 GO
 
