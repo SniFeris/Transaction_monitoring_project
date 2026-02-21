@@ -22,3 +22,9 @@ VALUES
 ('Crypto Transfer');
 GO
 
+INSERT INTO dbo.CountryRisk_table
+(CountryName, points, RiskLevel)
+VALUES ('*', 5, 'Low')
+
+
+

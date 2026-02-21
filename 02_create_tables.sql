@@ -17,6 +17,10 @@ DROP TABLE if EXISTS
 dbo.TransactionType_table;
 DROP TABLE if EXISTS
 dbo.RiskLevels_table;
+DROP TABLE if EXISTS
+dbo.CountryRisk_table;
+DROP TABLE if EXISTS
+dbo.ImportCountries_table;
 GO
 
 --Stores predefined risk levels and score ranges--
@@ -135,5 +139,19 @@ dbo.Transactions_table(TransactionID),
 
 );
 GO
+
+CREATE TABLE CountryRisk_table(
+    CountryName NVARCHAR(50),
+    RiskLevel NVARCHAR(10),
+    POINTS INT    
+);
+GO
+
+CREATE TABLE dbo.ImportCountries_table (
+    CountryName NVARCHAR(100)
+);
+GO
+
+
 
 
