@@ -12,6 +12,7 @@ VALUES
 GO
 
 --Seed predefined transaction types--
+DELETE from dbo.TransactionType_table
 INSERT INTO dbo.TransactionType_table
 (TransactionTypeName)
 VALUES
@@ -19,12 +20,43 @@ VALUES
 ('Cash Withdrawal'),
 ('International Transfer'),
 ('Card Payment'),
-('Crypto Transfer');
+('Crypto Transfer')
+ 
+GO
+--Make the script re-runable without duplicates--
+DELETE FROM dbo.CountryRisk_table WHERE
+Risklevel = 'High'
+--Clear staging table before loading new file--
+TRUNCATE TABLE dbo.ImportCountries_stage;
+--Load FATF blacklist countries from file--
+BULK INSERT dbo.ImportCountries_stage
+FROM 'C:\SQL\fatf_black_list.txt'
+WITH (
+    CODEPAGE = '65001',
+    ROWTERMINATOR = '0x0a'
+);
+GO
+--Insert FATF high risk countries in to main table--
+INSERT INTO dbo.CountryRisk_table
+(CountryName, RiskLevel, Points)
+SELECT TRIM(CountryName), 'High', 10
+FROM dbo.ImportCountries_stage
 GO
 
+TRUNCATE TABLE dbo.ImportCountries_stage;
+--Load EU high risk countries from file--
+BULK INSERT dbo.ImportCountries_stage
+FROM 'C:\SQL\eu_high_risk_countries.txt'
+WITH (
+    CODEPAGE = '65001',
+    ROWTERMINATOR = '0X0a'
+);
+--Insert EU high risk countries in to main table--
 INSERT INTO dbo.CountryRisk_table
-(CountryName, points, RiskLevel)
-VALUES ('*', 5, 'Low')
-
+(CountryName, RiskLevel, Points)
+SELECT DISTINCT TRIM(CountryName),
+'High', 10
+FROM dbo.ImportCountries_stage;
+GO
 
 

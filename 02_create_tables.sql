@@ -21,6 +21,8 @@ DROP TABLE if EXISTS
 dbo.CountryRisk_table;
 DROP TABLE if EXISTS
 dbo.ImportCountries_table;
+DROP TABLE if EXISTS
+dbo.ImportCountries_stage;
 GO
 
 --Stores predefined risk levels and score ranges--
@@ -139,19 +141,24 @@ dbo.Transactions_table(TransactionID),
 
 );
 GO
-
+--Stores country risk classification used in transaction monitoring--
 CREATE TABLE CountryRisk_table(
     CountryName NVARCHAR(50),
     RiskLevel NVARCHAR(10),
     POINTS INT    
 );
 GO
-
+--Sores imported country lists with source reference(FATF,EU)
 CREATE TABLE dbo.ImportCountries_table (
+    CountryName NVARCHAR(100),
+    Source NVARCHAR(10)
+);
+GO
+--Staging table used during bulk load, before merging in to main tables--
+CREATE TABLE dbo.ImportCountries_stage
+(
     CountryName NVARCHAR(100)
 );
 GO
-
-
 
 
