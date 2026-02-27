@@ -18,7 +18,7 @@ dbo.TransactionType_table;
 DROP TABLE if EXISTS
 dbo.RiskLevels_table;
 DROP TABLE if EXISTS
-dbo.CountryRisk_table;
+dbo.RiskRules_table;
 DROP TABLE if EXISTS
 dbo.ImportCountries_table;
 DROP TABLE if EXISTS
@@ -141,11 +141,19 @@ dbo.Transactions_table(TransactionID),
 
 );
 GO
---Stores country risk classification used in transaction monitoring--
-CREATE TABLE CountryRisk_table(
-    CountryName NVARCHAR(50),
-    RiskLevel NVARCHAR(10),
-    POINTS INT    
+--Stores reusable risk scoring rules (Country, Transaction Type, Amount, etc)--
+--Used in transaction monitoring engine--
+CREATE TABLE dbo.RiskRules_table (
+    RuleID INT IDENTITY(1,1) PRIMARY KEY,
+    RuleType NVARCHAR(30) NOT NULL,
+    RuleValue NVARCHAR(200) NOT NULL,
+    RiskLevel NVARCHAR(10) NOT NULL,
+    Points INT NOT NULL,
+    Source NVARCHAR(20) NULL,
+    IsActive BIT NOT NULL DEFAULT 1,
+
+    CONSTRAINT UQ_RiskRules UNIQUE
+(RuleType, RuleValue, Source)
 );
 GO
 --Sores imported country lists with source reference(FATF,EU)
