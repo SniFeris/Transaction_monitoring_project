@@ -18,7 +18,9 @@ INSERT INTO dbo.TransactionType_table
 VALUES
 ('Cash Deposit'),
 ('Cash Withdrawal'),
+('ATM Withdrawal'),
 ('International Transfer'),
+('Domestic Transfer'),
 ('Card Payment'),
 ('Crypto Transfer')
  
