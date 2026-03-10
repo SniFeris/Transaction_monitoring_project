@@ -169,17 +169,4 @@ CREATE TABLE dbo.ImportCountries_stage
 );
 GO
 
---Frequency risk scoring: Calculates client frequency score based on transactions in last 7 days-
-SELECT
-    t.ClientID,
-    COUNT(t.TransactionID) AS
-TxCountLast7Days,
-    CASE
-       WHEN COUNT(t.TransactionID) >= 10 THEN 30
-       WHEN COUNT(t.TransactionID) >= 6 THEN 20
-       WHEN COUNT(t.TransactionID) >= 3 THEN 10
-        ELSE 0
-     END AS FrequencyRiskScore
-    FROM dbo.Transactions_table t
-    WHERE t.TransactionDate >= DATEADD(day, -7, GETDATE())
-    GROUP BY t.ClientID
+
