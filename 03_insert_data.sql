@@ -46,7 +46,7 @@ SELECT DISTINCT
      'Country',
      TRIM(CountryName),
      'High',
-     10,
+     30,
      'FATF',
      1
 FROM dbo.ImportCountries_stage
@@ -71,10 +71,35 @@ SELECT DISTINCT
      'Country',
      TRIM(CountryName),
      'High', 
-     10,
+     30,
      'EU',
      1
 FROM dbo.ImportCountries_stage;
 GO
 
 
+DELETE FROM dbo.RiskRules_table WHERE
+RuleType = 'Country'   
+   AND Source = 'FATF_GREY'
+--Clear staging table before loading new file--
+TRUNCATE TABLE dbo.ImportCountries_stage;
+--Load FATF grey countries from file--
+BULK INSERT dbo.ImportCountries_stage
+FROM 'C:\SQL\fatf_grey_list.txt'
+WITH (
+    CODEPAGE = '65001',
+    ROWTERMINATOR = '0x0a'
+);
+GO
+--Insert FATF grey risk countries in to main table--
+INSERT INTO dbo.RiskRules_table
+(RuleType, RuleValue, RiskLevel, Points, Source, IsActive)
+SELECT DISTINCT
+     'Country',
+     TRIM(CountryName),
+     'Medium',
+     15,
+     'FATF_GREY',
+     1
+FROM dbo.ImportCountries_stage
+GO
