@@ -56,11 +56,11 @@ CREATE TABLE dbo.Clients_table (
     Address NVARCHAR(150) not null,
     Onboardingdate date not null,
     DateOfBirth date not null,
-    RiskLevelID INT not null,
+    KYCRiskLevelID INT not null,
     Status NVARCHAR(20) not null
 
      CONSTRAINT FK_Clients_RiskLevel
-          FOREIGN KEY (RiskLevelID)
+          FOREIGN KEY (KYCRiskLevelID)
           REFERENCES
     dbo.RiskLevels_table(RiskLevelID)
 
@@ -76,18 +76,13 @@ CREATE TABLE dbo.Transactions_table (
     TransactionTypeID INT NOT NULL,
     Status NVARCHAR(20)
     CONSTRAINT DF_Transaction_status
-    DEFAULT 'Pending',
-    RiskLevelID INT NOT NULL,
+    DEFAULT 'Pending',    
     TransactionDate datetime NOT NULL,
---Ensures each transaction references a valid client and risk level--
+--Ensures each transaction references a valid client and transaction type--
     CONSTRAINT FK_Transactions_clients
          FOREIGN KEY (ClientID)
          REFERENCES
-    dbo.Clients_table(ClientID),
-    CONSTRAINT FK_Transactions_Risklevel
-         FOREIGN KEY (RiskLevelID)
-         REFERENCES
-    dbo.RiskLevels_table(RiskLevelID),
+    dbo.Clients_table(ClientID),   
     CONSTRAINT FK_Transactions_TransactionType
          FOREIGN KEY (TransactionTypeID)
          REFERENCES
