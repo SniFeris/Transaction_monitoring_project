@@ -1,0 +1,14 @@
+
+{
+"Description": "Scenario configuration for AML transaction monitoring",
+ "Clients": {
+ "total": 50,
+ "Low_risk": 30,
+ "Medium_risk": 15,
+ "High_risk": 5
+  },
+ "transactions": {
+  "per_client": 20,
+  "Max_amount": 10000
+ }
+}

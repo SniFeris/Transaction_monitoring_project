@@ -114,3 +114,13 @@ AS TotalRiskScore
       ON cr.ClientID = st.ClientID
   LEFT JOIN TransactionTypeRiskScore tt
       ON cr.ClientID = tt.ClientID
+
+
+USE TransactionMonitoringProject;
+GO
+
+SELECT COLUMN_NAME
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'RiskRules_table'
+
+
