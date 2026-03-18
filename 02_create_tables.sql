@@ -19,10 +19,6 @@ DROP TABLE if EXISTS
 dbo.RiskLevels_table;
 DROP TABLE if EXISTS
 dbo.RiskRules_table;
-DROP TABLE if EXISTS
-dbo.ImportCountries_table;
-DROP TABLE if EXISTS
-dbo.ImportCountries_stage;
 GO
 
 --Stores predefined risk levels and score ranges--
@@ -151,17 +147,7 @@ CREATE TABLE dbo.RiskRules_table (
 (RuleType, RuleValue, Source)
 );
 GO
---Sores imported country lists with source reference(FATF,EU)
-CREATE TABLE dbo.ImportCountries_table (
-    CountryName NVARCHAR(100),
-    Source NVARCHAR(10)
-);
-GO
---Staging table used during bulk load, before merging in to main tables--
-CREATE TABLE dbo.ImportCountries_stage
-(
-    CountryName NVARCHAR(100)
-);
-GO
+
+
 
 
