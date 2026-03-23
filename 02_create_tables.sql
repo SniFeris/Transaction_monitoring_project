@@ -68,11 +68,9 @@ CREATE TABLE dbo.Transactions_table (
     TransactionID int IDENTITY(1,1) NOT NULL PRIMARY KEY,
     ClientID INT NOT NULL,
     Amount DECIMAL(18,2),
-    Currency NVARCHAR(5) NOT NULL,
+    Currency NVARCHAR(5) NOT NULL DEFAULT 'EUR',
     TransactionTypeID INT NOT NULL,
-    Status NVARCHAR(20)
-    CONSTRAINT DF_Transaction_status
-    DEFAULT 'Pending',    
+    Status NVARCHAR(20) DEFAULT 'Pending',      
     TransactionDate datetime NOT NULL,
 --Ensures each transaction references a valid client and transaction type--
     CONSTRAINT FK_Transactions_clients

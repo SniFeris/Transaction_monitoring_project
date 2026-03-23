@@ -78,7 +78,8 @@ for i in range(total_clients):
     risk = risk_levels[i] 
     if risk == 3: country = random.choice(high_risk_countries)        
     elif risk == 2: country = random.choice(medium_risk_countries)        
-    else: country = random.choice(low_risk_countries)         
+    else: country = random.choice(low_risk_countries)
+    #print(country, risk)        
 
 #Create synthetic client record, data simulates realistic KYC onboarding information
     client = {
