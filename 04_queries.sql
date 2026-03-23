@@ -123,3 +123,20 @@ SELECT COLUMN_NAME
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_NAME = 'RiskRules_table'
 
+SELECT status, COUNT(*) AS total
+FROM dbo.Transactions_table
+GROUP BY Status
+
+SELECT COUNT(*) FROM
+dbo.Transactions_table; 
+
+SELECT COUNT(*) FROM dbo.Clients_table
+SELECT COUNT(*) FROM dbo.RiskLevels_table
+
+SELECT COUNT(*) AS total_clients
+from dbo.Clients_table;
+
+SELECT ClientID, COUNT(*) AS txn_count
+FROM dbo.Transactions_table
+GROUP BY ClientID
+ORDER BY ClientID;

@@ -70,7 +70,8 @@ CREATE TABLE dbo.Transactions_table (
     Amount DECIMAL(18,2),
     Currency NVARCHAR(5) NOT NULL DEFAULT 'EUR',
     TransactionTypeID INT NOT NULL,
-    Status NVARCHAR(20) DEFAULT 'Pending',      
+    Status NVARCHAR(20) DEFAULT 'Pending',
+    DestinationCountry NVARCHAR(100),      
     TransactionDate datetime NOT NULL,
 --Ensures each transaction references a valid client and transaction type--
     CONSTRAINT FK_Transactions_clients
