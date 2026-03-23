@@ -56,24 +56,55 @@ transactions_config = scenario["transactions"]
 per_client = transactions_config["per_client"]
 max_amount = transactions_config["Max_amount"]
 
+#Select random clients that simulate smurfing behavior
+smurfing_clients = random.sample(clients, 3)
+
 #Loop through each client from database
 for client_id in clients:
-#Random number of transactions for this client
-   num_transactions = random.randint(1, per_client)
-   
-#Loop each transaction of client
-   for i in range(num_transactions):
-    transaction_type_id = random.choice(transaction_types)
-    amount = round(random.uniform(10, max_amount), 2)
-    destination_country = fake.country()
-    transaction_date = datetime.now() - timedelta(days=random.randint(0, 30))
+    #If client is marked as smurfing generate many small transactions
+    if client_id in smurfing_clients:
+    #Generate multiple small transactions below threshold     
+     num_transactions = random.randint(6, 10)
+     for i in range(num_transactions):      
+      transaction_type_id = random.choice(transaction_types)
+    #Intentionaly below reporting threshold
+      amount = round(random.uniform(800, 990), 2)
+      destination_country = fake.country()
+      transaction_date = datetime.now()
+      status = "Flagged"
+      #Insert generated smurfing transaction into database
+      cursor.execute("""
+            INSERT INTO dbo.Transactions_table
+             (ClientID, Amount, Currency, TransactionTypeId, Status, DestinationCountry, TransactionDate)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, ( 
+                  client_id, 
+                  amount,
+                  "EUR", 
+                  transaction_type_id, 
+                  status, destination_country, 
+                  transaction_date
+                  ))
+     continue
+             
+#Generate normal transaction behaviour for non-smurfing clients
+    num_transactions = random.randint(1, per_client)
+
+    #Loop each transaction of client
+    for i in range(num_transactions):     
+     transaction_type_id = random.choice(transaction_types)
+     #generate random transaction amount(small or large)
+     amount = round(random.uniform(10, max_amount), 2)
+     destination_country = fake.country()
+     transaction_date = datetime.now() - timedelta(days=random.randint(0, 30))
+     #randomly assign status, simulate normal vs suspicious transactions
     if random.random() < 0.3:
        status = "Flagged"
     else:
         status = "Approved"
     
 #Insert generated transactions into SQL server  
-    cursor.execute("""
+        cursor.execute("""
            INSERT INTO dbo.Transactions_table
            (ClientID, Amount, Currency, TransactionTypeId, Status, DestinationCountry, TransactionDate)
            VALUES (?, ?, ?, ?, ?, ?, ?)

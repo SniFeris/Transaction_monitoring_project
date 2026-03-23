@@ -115,28 +115,50 @@ AS TotalRiskScore
   LEFT JOIN TransactionTypeRiskScore tt
       ON cr.ClientID = tt.ClientID
 
+--Smurfing detection and alert generation
+WITH SmurfingCandidates AS (
+    SELECT
+        ClientID,
+        CAST(TransactionDate AS DATE)
+AS TxnDate,
+        COUNT(*) AS TxnCount,
+        SUM(Amount) AS TotalAmount,
+        MAX(TransactionID) AS
+LastTransactionID
+    FROM dbo.Transactions_table
+    WHERE Amount < 1000
+    GROUP BY ClientID,
+CAST(TransactionDate AS DATE)
+    HAVING COUNT(*) >= 5
+             AND SUM(Amount) > 5000
+)
+--Insert alerts for detected smurfing patterns, avoiding duplicates
+INSERT INTO dbo.Alerts_table
+(TransactionID, RuleCode, AlertStatus)
+SELECT
+     LastTransactionID,
+     'Smurfing',
+     'Open'
+FROM SmurfingCandidates sc
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM dbo.Alerts_table a
+    WHERE a.TransactionID = sc.LastTransactionID
+        AND a.Rulecode = 'Smurfing'
+)
 
-USE TransactionMonitoringProject;
-GO
-
-SELECT COLUMN_NAME
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_NAME = 'RiskRules_table'
-
-SELECT status, COUNT(*) AS total
-FROM dbo.Transactions_table
-GROUP BY Status
-
-SELECT COUNT(*) FROM
-dbo.Transactions_table; 
-
-SELECT COUNT(*) FROM dbo.Clients_table
-SELECT COUNT(*) FROM dbo.RiskLevels_table
-
-SELECT COUNT(*) AS total_clients
-from dbo.Clients_table;
+SELECT COUNT(*) AS total_rows
+FROM dbo.Transactions_table;
 
 SELECT ClientID, COUNT(*) AS txn_count
 FROM dbo.Transactions_table
 GROUP BY ClientID
-ORDER BY ClientID;
+ORDER BY ClientID
+
+SELECT ClientID, COUNT(*) AS txn_count
+FROM dbo.Transactions_table
+GROUP BY ClientID
+HAVING COUNT(*) > 1
+ORDER BY ClientID
+
+SELECT * FROM dbo.Alerts_table
