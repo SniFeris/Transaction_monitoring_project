@@ -22,9 +22,9 @@ GROUP BY
     c.ClientID,
     c.Name,
     c.country
-)
+),
 --Frequency risk: Calculates client frequency score based on transactions in last 7 days-
-,FrequencyRisk AS (
+FrequencyRisk AS (
    SELECT
     t.ClientID,
     COUNT(t.TransactionID) AS
@@ -196,3 +196,42 @@ HAVING COUNT(*) > 1
 ORDER BY ClientID
 
 SELECT * FROM dbo.Alerts_table
+
+SELECT TOP 20 *
+FROM dbo.Alerts_table
+ORDER BY CreateAt DESC
+
+SELECT COUNT(*) FROM CountryRisk_table
+
+
+;WITH CountryRisk AS (
+SELECT
+    c.ClientID,
+    c.Name,
+    c.Country,
+    SUM(r.Points) AS CountryRiskScore
+
+FROM dbo.Clients_table c
+JOIN dbo.RiskRules_table r
+    ON c.Country = r.RuleValue
+WHERE r.RuleType = 'Country'
+   AND r.IsActive = 1
+GROUP BY 
+    c.ClientID,
+    c.Name,
+    c.country
+)
+SELECT * FROM CountryRisk;
+
+
+SELECT TOP 20
+     c.ClientID,
+     c.Country,
+     r.RuleValue
+FROM dbo.Clients_table c
+LEFT JOIN dbo.RiskRules_table r
+  ON c.Country = r.RuleValue
+  AND r.Ruletype = 'Country'
+  AND r.IsActive = 1
+
+  SELECT * FROM dbo.RiskRules_table

@@ -12,8 +12,13 @@ VALUES
 GO
 
 --Seed predefined transaction types--
-DELETE from dbo.TransactionType_table
-INSERT INTO dbo.TransactionType_table
+IF NOT EXISTS (
+    SELECT 1
+    FROM dbo.TransactionType_table
+)
+BEGIN
+    INSERT INTO 
+dbo.TransactionType_table
 (TransactionTypeName)
 VALUES
 ('Cash Deposit'),
@@ -23,10 +28,87 @@ VALUES
 ('Domestic Transfer'),
 ('Card Payment'),
 ('Crypto Transfer')
- 
+ END
+GO
+
+--Make the script re-runable without duplicates--
+DELETE FROM dbo.RiskRules_table WHERE
+RuleType = 'Country'   
+   AND Source = 'FATF'
+--Clear staging table before loading new file--
+TRUNCATE TABLE dbo.ImportCountries_stage;
+--Load FATF blacklist countries from file--
+BULK INSERT dbo.ImportCountries_stage
+FROM 'C:\SQL\fatf_black_list.txt'
+WITH (
+    CODEPAGE = '65001',
+    ROWTERMINATOR = '0x0a'
+);
+GO
+--Insert FATF high risk countries in to main table--
+INSERT INTO dbo.RiskRules_table
+(RuleType, RuleValue, RiskLevel, Points, Source, IsActive)
+SELECT DISTINCT
+     'Country',
+     TRIM(CountryName),
+     'High',
+     30,
+     'FATF',
+     1
+FROM dbo.ImportCountries_stage
+GO
+
+DELETE FROM dbo.RiskRules_table WHERE
+RuleType = 'Country'   
+   AND Source = 'EU'
+
+TRUNCATE TABLE dbo.ImportCountries_stage;
+--Load EU high risk countries from file--
+BULK INSERT dbo.ImportCountries_stage
+FROM 'C:\SQL\eu_high_risk_countries.txt'
+WITH (
+    CODEPAGE = '65001',
+    ROWTERMINATOR = '0X0a'
+);
+--Insert EU high risk countries in to main table--
+INSERT INTO dbo.RiskRules_table
+(RuleType, RuleValue, RiskLevel, Points, Source, IsActive)
+SELECT DISTINCT
+     'Country',
+     TRIM(CountryName),
+     'High', 
+     30,
+     'EU',
+     1
+FROM dbo.ImportCountries_stage;
 GO
 
 
+DELETE FROM dbo.RiskRules_table WHERE
+RuleType = 'Country'   
+   AND Source = 'FATF_GREY'
+--Clear staging table before loading new file--
+TRUNCATE TABLE dbo.ImportCountries_stage;
+--Load FATF grey countries from file--
+BULK INSERT dbo.ImportCountries_stage
+FROM 'C:\SQL\fatf_grey_list.txt'
+WITH (
+    CODEPAGE = '65001',
+    ROWTERMINATOR = '0x0a'
+);
+GO
+--Insert FATF grey risk countries in to main table--
+INSERT INTO dbo.RiskRules_table
+(RuleType, RuleValue, RiskLevel, Points, Source, IsActive)
+SELECT DISTINCT
+     'Country',
+     TRIM(CountryName),
+     'Medium',
+     15,
+     'FATF_GREY',
+     1
+FROM dbo.ImportCountries_stage
+GO
 
 
 

@@ -19,8 +19,9 @@ DROP TABLE if EXISTS
 dbo.RiskLevels_table;
 DROP TABLE if EXISTS
 dbo.RiskRules_table;
+DROP TABLE IF EXISTS
+dbo.ImportCountries_stage;
 GO
-
 --Stores predefined risk levels and score ranges--
 CREATE TABLE dbo.RiskLevels_table (
     RiskLevelID INT IDENTITY(1,1) NOT
@@ -147,6 +148,11 @@ CREATE TABLE dbo.RiskRules_table (
 );
 GO
 
-
+--Staging table used during bulk load, before merging in to main tables--
+CREATE TABLE dbo.ImportCountries_stage
+(
+    CountryName NVARCHAR(100)
+);
+GO
 
 
