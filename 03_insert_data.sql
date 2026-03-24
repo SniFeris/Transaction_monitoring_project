@@ -8,7 +8,7 @@ dbo.RiskLevels_table)
 VALUES
 ('Low', 0, 39),
 ('Medium',40, 69),
-('High',70, 100);
+('High',70, 999);
 GO
 
 --Seed predefined transaction types--

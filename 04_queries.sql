@@ -1,4 +1,11 @@
-/*Country risk Assigns risk points based on clients country*/
+--====================================
+--TRANSACTION MONITORING PROJECT
+--Risk scoring and alert generation
+--====================================
+--SECTION: RISK SCORING
+--This section calculates risk scores based on transaction behavior
+--====================================
+--Country risk: Assigns risk points based on clients country
 WITH CountryRisk AS (
 SELECT
     c.ClientID,
@@ -83,6 +90,22 @@ TransactionTypeRiskScore AS (
         JOIN dbo.TransactionType_table tt
           ON t.TransactionTypeID = tt.TransactionTypeID
         GROUP BY t.ClientID
+),
+--Smurfing risk: structured transactions below single-transfer threshold whithin 7 days
+SmurfingRisk AS (
+    SELECT
+        t.ClientID,
+        CASE
+           WHEN COUNT(*) >= 5 AND SUM(t.Amount) >= 10000 AND MAX(t.Amount) < 10000 THEN 50
+           ELSE 0
+
+        END AS SmurfingRiskScore
+        FROM dbo.Transactions_table t
+        WHERE t.Amount < 1000
+          AND t.TransactionDate >=
+        DATEADD(day, -7, GETDATE())
+        GROUP BY t.ClientID
+         
 )
 --Final risk score calculation: combines all risk indicators into Total risk score--
 SELECT
@@ -98,12 +121,16 @@ SELECT
   AS SingleTxAmountRiskScore,
      ISNULL(tt.TransactionTypeRiskScore, 0)
   AS TransactionTypeRiskScore,
+     ISNULL(sr.SmurfingRiskScore, 0)
+  AS SmurfingRiskScore,
 
     cr.CountryRiskScore
     + ISNULL(fr.FrequencyRiskScore, 0)
     + ISNULL(a7.Amount7DaysRiskScore, 0)
     + ISNULL(st.SingleTxAmountRiskScore, 0)
     + ISNULL(tt.TransactionTypeRiskScore, 0)
+    + ISNULL(sr.SmurfingRiskScore, 0)
+
 AS TotalRiskScore
   FROM CountryRisk cr
   LEFT JOIN FrequencyRisk fr
@@ -114,6 +141,13 @@ AS TotalRiskScore
       ON cr.ClientID = st.ClientID
   LEFT JOIN TransactionTypeRiskScore tt
       ON cr.ClientID = tt.ClientID
+  LEFT JOIN SmurfingRisk sr
+      ON cr.ClientID = sr.ClientID;
+
+--======================================
+--SECTION: ALERTS GENERATION
+--This section generates alerts based on detected suspicious transaction patterns
+--======================================
 
 --Smurfing detection and alert generation
 WITH SmurfingCandidates AS (
