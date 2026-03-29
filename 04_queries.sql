@@ -38,23 +38,8 @@ TxCountLast7Days,
     FROM dbo.Transactions_table t
     WHERE t.TransactionDate >= DATEADD(day, -7, GETDATE())
     GROUP BY t.ClientID
-)
---Amount risk: Based on total transaction amount in last 7 days--
-,Amount7DaysRisk AS (
-    SELECT
-      t.ClientID,
-      SUM(t.Amount) AS TotalAmountLast7Days,
-
-    CASE
-       WHEN SUM(t.Amount) >= 50000 THEN 20
-       WHEN SUM(t.Amount) >= 25000 THEN 15
-       WHEN SUM(t.Amount) >= 10000 THEN 10
-         ELSE 0
-     END AS Amount7DaysRiskScore
-    FROM dbo.Transactions_table t
-    WHERE t.TransactionDate >= DATEADD(day, -7, GETDATE())
-    GROUP BY t.ClientID
 ),
+
 --Single transaction amount risk: highest risk from a single transaction--
 SingleTxAmountRisk AS (
     SELECT    
@@ -114,9 +99,7 @@ SELECT
      cr.Country,
      cr.CountryRiskScore,
      ISNULL(fr.FrequencyRiskScore, 0) 
-  AS FrequencyRiskScore,
-     ISNULL(a7.Amount7DaysRiskScore, 0)
-  AS Amount7DaysRiskScore,
+  AS FrequencyRiskScore,  
      ISNULL(st.SingleTxAmountRiskScore, 0)
   AS SingleTxAmountRiskScore,
      ISNULL(tt.TransactionTypeRiskScore, 0)
@@ -125,8 +108,7 @@ SELECT
   AS SmurfingRiskScore,
 
     cr.CountryRiskScore
-    + ISNULL(fr.FrequencyRiskScore, 0)
-    + ISNULL(a7.Amount7DaysRiskScore, 0)
+    + ISNULL(fr.FrequencyRiskScore, 0)   
     + ISNULL(st.SingleTxAmountRiskScore, 0)
     + ISNULL(tt.TransactionTypeRiskScore, 0)
     + ISNULL(sr.SmurfingRiskScore, 0)
@@ -134,9 +116,7 @@ SELECT
 AS TotalRiskScore
   FROM CountryRisk cr
   LEFT JOIN FrequencyRisk fr
-      ON cr.ClientID = fr.ClientID
-  LEFT JOIN Amount7DaysRisk a7
-      ON cr.ClientID = a7.ClientID
+      ON cr.ClientID = fr.ClientID  
   LEFT JOIN SingleTxAmountRisk st
       ON cr.ClientID = st.ClientID
   LEFT JOIN TransactionTypeRiskScore tt
@@ -202,33 +182,6 @@ WHERE NOT EXISTS (
     'LargeSingleTransaction'
 );
 
---high amount in last seven days alert generation
-WITH HighAmount7DaysCandidates AS (
-    SELECT
-        t.ClientID,
-        MAX(t.TransactionID) AS
-LastTransactionID,
-        SUM(t.Amount) AS
-TotalAmountLast7Days
-    FROM dbo.Transactions_table t
-    WHERE t.TransactionDate >= DATEADD(day, -7, GETDATE())
-    GROUP BY t.ClientID
-    HAVING SUM(t.Amount) >= 25000
-)
-INSERT INTO dbo.Alerts_table
-(TransactionID, RuleCode, AlertStatus)
-SELECT
-    h.LastTransactionID,
-    'HighAmount7Days',
-    'Open'
-FROM HighAmount7DaysCandidates h
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM dbo.Alerts_table a
-    WHERE a.TransactionID = h.LastTransactionID
-       AND a.RuleCode = 'HighAmount7Days'
-);
-
 --Smurfing detection and alert generation
 WITH SmurfingCandidates AS (
     SELECT
@@ -260,18 +213,144 @@ WHERE NOT EXISTS (
     WHERE a.TransactionID = sc.LastTransactionID
         AND a.Rulecode = 'Smurfing'
 )
+ ;WITH CountryRisk AS (
+    SELECT
+        c.ClientID,
+        SUM(r.Points) AS CountryRiskScore
+    FROM dbo.Clients_table c
+    JOIN dbo.RiskRules_table r
+        ON c.Country = r.RuleValue
+    WHERE r.RuleType = 'Country'
+      AND r.IsActive = 1
+    GROUP BY c.ClientID
+),
+FrequencyRisk AS (
+    SELECT
+        t.ClientID,
+        CASE
+            WHEN COUNT(t.TransactionID) >= 10 THEN 20
+            WHEN COUNT(t.TransactionID) >= 6 THEN 15
+            WHEN COUNT(t.TransactionID) >= 3 THEN 10
+            ELSE 0
+        END AS FrequencyRiskScore
+    FROM dbo.Transactions_table t
+    WHERE t.TransactionDate >= DATEADD(day, -7, GETDATE())
+    GROUP BY t.ClientID
+),
+Amount7DaysRisk AS (
+    SELECT
+        t.ClientID,
+        CASE
+            WHEN SUM(t.Amount) >= 50000 THEN 20
+            WHEN SUM(t.Amount) >= 25000 THEN 15
+            WHEN SUM(t.Amount) >= 10000 THEN 10
+            ELSE 0
+        END AS Amount7DaysRiskScore
+    FROM dbo.Transactions_table t
+    WHERE t.TransactionDate >= DATEADD(day, -7, GETDATE())
+    GROUP BY t.ClientID
+),
+SingleTxAmountRisk AS (
+    SELECT
+        t.ClientID,
+        MAX(
+            CASE
+                WHEN t.Amount >= 10000 THEN 10
+                WHEN t.Amount >= 5000 THEN 6
+                WHEN t.Amount >= 2000 THEN 3
+                ELSE 0
+            END
+        ) AS SingleTxAmountRiskScore
+    FROM dbo.Transactions_table t
+    GROUP BY t.ClientID
+),
+TransactionTypeRiskScore AS (
+    SELECT
+        t.ClientID,
+        MAX(
+            CASE
+                WHEN tt.TransactionTypeName = 'Crypto Transfer' THEN 10
+                WHEN tt.TransactionTypeName = 'International Transfer' THEN 7
+                WHEN tt.TransactionTypeName = 'Cash Deposit' THEN 5
+                ELSE 0
+            END
+        ) AS TransactionTypeRiskScore
+    FROM dbo.Transactions_table t
+    JOIN dbo.TransactionType_table tt
+        ON t.TransactionTypeID = tt.TransactionTypeID
+    GROUP BY t.ClientID
+),
+SmurfingRisk AS (
+    SELECT
+        t.ClientID,
+        50 AS SmurfingRiskScore
+    FROM dbo.Transactions_table t
+    WHERE t.Amount < 1000
+    GROUP BY
+        t.ClientID,
+        CAST(t.TransactionDate AS DATE)
+    HAVING COUNT(*) >= 5
+       AND SUM(t.Amount) > 5000
+),
 
-
-
-SELECT * FROM dbo.Alerts_table
-ORDER BY CreateAt DESC
-
+--Total risk score alert
+TotalRiskCandidates AS (
+    SELECT
+        c.ClientID,
+        MAX(t.TransactionID) AS LastTransactionID,
+        ISNULL(cr.CountryRiskScore, 0)
+        + ISNULL(fr.FrequencyRiskScore, 0)
+        + ISNULL(a7.Amount7DaysRiskScore, 0)
+        + ISNULL(st.SingleTxAmountRiskScore, 0)
+        + ISNULL(tt.TransactionTypeRiskScore, 0)
+        + ISNULL(sr.SmurfingRiskScore, 0) AS TotalRiskScore
+    FROM dbo.Clients_table c
+    LEFT JOIN dbo.Transactions_table t
+        ON c.ClientID = t.ClientID
+    LEFT JOIN CountryRisk cr
+        ON c.ClientID = cr.ClientID
+    LEFT JOIN FrequencyRisk fr
+        ON c.ClientID = fr.ClientID
+    LEFT JOIN Amount7DaysRisk a7
+        ON c.ClientID = a7.ClientID
+    LEFT JOIN SingleTxAmountRisk st
+        ON c.ClientID = st.ClientID
+    LEFT JOIN TransactionTypeRiskScore tt
+        ON c.ClientID = tt.ClientID
+    LEFT JOIN SmurfingRisk sr
+        ON c.ClientID = sr.ClientID
+    GROUP BY
+        c.ClientID,
+        cr.CountryRiskScore,
+        fr.FrequencyRiskScore,
+        a7.Amount7DaysRiskScore,
+        st.SingleTxAmountRiskScore,
+        tt.TransactionTypeRiskScore,
+        sr.SmurfingRiskScore
+    HAVING
+        ISNULL(cr.CountryRiskScore, 0)
+        + ISNULL(fr.FrequencyRiskScore, 0)
+        + ISNULL(a7.Amount7DaysRiskScore, 0)
+        + ISNULL(st.SingleTxAmountRiskScore, 0)
+        + ISNULL(tt.TransactionTypeRiskScore, 0)
+        + ISNULL(sr.SmurfingRiskScore, 0) >= 50
+)
+INSERT INTO dbo.Alerts_table
+(TransactionID, RuleCode, AlertStatus)
 SELECT
-    TransactionID,
-    ClientID,
-    Amount
-FROM dbo.Transactions_table
-WHERE Amount >= 10000
-ORDER BY Amount DESC;
+    tr.LastTransactionID,
+    'HighTotalRisk',
+    'Open'
+FROM TotalRiskCandidates tr
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM dbo.Alerts_table a
+    WHERE a.TransactionID = tr.LastTransactionID
+      AND a.RuleCode = 'HighTotalRisk'
+);
+
+
+
+
 
 
