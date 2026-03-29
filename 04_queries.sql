@@ -177,6 +177,31 @@ h.TransactionID
       AND a.RuleCode = 'HighRiskCountryTransfer'
 );
 
+--Large single transaction alert generation
+WITH LargeSingleTransactionCandidates AS (
+    SELECT
+         t.TransactionID,
+         t.ClientID,
+         t.Amount
+    FROM dbo.Transactions_table t
+    WHERE t.Amount >= 10000
+)
+INSERT INTO dbo.Alerts_table
+(TransactionID, RuleCode, AlertStatus)
+SELECT
+     l.TransactionID,
+     'LargeSingleTransaction',
+     'Open'
+FROM LargeSingleTransactionCandidates l
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM dbo.Alerts_table a
+    WHERE a.TransactionID =
+    l.TransactionID
+        AND a.RuleCode = 
+    'LargeSingleTransaction'
+);
+
 --Smurfing detection and alert generation
 WITH SmurfingCandidates AS (
     SELECT
@@ -209,20 +234,17 @@ WHERE NOT EXISTS (
         AND a.Rulecode = 'Smurfing'
 )
 
-SELECT COUNT(*) AS total_rows
-FROM dbo.Transactions_table;
 
-SELECT ClientID, COUNT(*) AS txn_count
+
+SELECT * FROM dbo.Alerts_table
+ORDER BY CreateAt DESC
+
+SELECT
+    TransactionID,
+    ClientID,
+    Amount
 FROM dbo.Transactions_table
-GROUP BY ClientID
-ORDER BY ClientID
-
-SELECT ClientID, COUNT(*) AS txn_count
-FROM dbo.Transactions_table
-GROUP BY ClientID
-HAVING COUNT(*) > 1
-ORDER BY ClientID
-
-
+WHERE Amount >= 10000
+ORDER BY Amount DESC;
 
 
