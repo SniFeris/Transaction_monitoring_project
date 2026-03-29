@@ -149,6 +149,34 @@ AS TotalRiskScore
 --This section generates alerts based on detected suspicious transaction patterns
 --======================================
 
+--High risk country transfer alert generation
+WITH HighRiskCountryTransfers AS (
+    SELECT
+        t.TransactionID,
+        t.ClientID,
+        t.DestinationCountry
+    FROM dbo.Transactions_table t
+    JOIN dbo.RiskRules_table r
+       ON t.DestinationCountry = r.RuleValue
+    WHERE r.Ruletype = 'Country'
+      AND r.IsActive = 1
+      AND r.RiskLevel = 'High'
+)
+INSERT INTO dbo.Alerts_table
+(TransactionID, RuleCode, AlertStatus)
+SELECT
+     h.TransactionID,
+     'HighRiskCountryTransfer',
+     'Open'
+FROM HighRiskCountryTransfers h
+WHERE NOT exists (
+    SELECT 1
+    FROM dbo.Alerts_table a
+    WHERE a.TransactionID =
+h.TransactionID
+      AND a.RuleCode = 'HighRiskCountryTransfer'
+);
+
 --Smurfing detection and alert generation
 WITH SmurfingCandidates AS (
     SELECT
@@ -195,43 +223,6 @@ GROUP BY ClientID
 HAVING COUNT(*) > 1
 ORDER BY ClientID
 
-SELECT * FROM dbo.Alerts_table
-
-SELECT TOP 20 *
-FROM dbo.Alerts_table
-ORDER BY CreateAt DESC
-
-SELECT COUNT(*) FROM CountryRisk_table
 
 
-;WITH CountryRisk AS (
-SELECT
-    c.ClientID,
-    c.Name,
-    c.Country,
-    SUM(r.Points) AS CountryRiskScore
 
-FROM dbo.Clients_table c
-JOIN dbo.RiskRules_table r
-    ON c.Country = r.RuleValue
-WHERE r.RuleType = 'Country'
-   AND r.IsActive = 1
-GROUP BY 
-    c.ClientID,
-    c.Name,
-    c.country
-)
-SELECT * FROM CountryRisk;
-
-
-SELECT TOP 20
-     c.ClientID,
-     c.Country,
-     r.RuleValue
-FROM dbo.Clients_table c
-LEFT JOIN dbo.RiskRules_table r
-  ON c.Country = r.RuleValue
-  AND r.Ruletype = 'Country'
-  AND r.IsActive = 1
-
-  SELECT * FROM dbo.RiskRules_table
