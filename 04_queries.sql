@@ -202,6 +202,33 @@ WHERE NOT EXISTS (
     'LargeSingleTransaction'
 );
 
+--high amount in last seven days alert generation
+WITH HighAmount7DaysCandidates AS (
+    SELECT
+        t.ClientID,
+        MAX(t.TransactionID) AS
+LastTransactionID,
+        SUM(t.Amount) AS
+TotalAmountLast7Days
+    FROM dbo.Transactions_table t
+    WHERE t.TransactionDate >= DATEADD(day, -7, GETDATE())
+    GROUP BY t.ClientID
+    HAVING SUM(t.Amount) >= 25000
+)
+INSERT INTO dbo.Alerts_table
+(TransactionID, RuleCode, AlertStatus)
+SELECT
+    h.LastTransactionID,
+    'HighAmount7Days',
+    'Open'
+FROM HighAmount7DaysCandidates h
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM dbo.Alerts_table a
+    WHERE a.TransactionID = h.LastTransactionID
+       AND a.RuleCode = 'HighAmount7Days'
+);
+
 --Smurfing detection and alert generation
 WITH SmurfingCandidates AS (
     SELECT
