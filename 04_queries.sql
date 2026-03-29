@@ -23,18 +23,17 @@ GROUP BY
     c.Name,
     c.country
 ),
---Frequency risk: Calculates client frequency score based on transactions in last 7 days-
-FrequencyRisk AS (
+--High-frequency high-volume risk: frequent transactions with large total amounts in last 7 days
+HighFrequencyHighVolumeRisk AS (
    SELECT
     t.ClientID,
     COUNT(t.TransactionID) AS
 TxCountLast7Days,
     CASE
-       WHEN COUNT(t.TransactionID) >= 10 THEN 30
-       WHEN COUNT(t.TransactionID) >= 6 THEN 20
-       WHEN COUNT(t.TransactionID) >= 3 THEN 10
+       WHEN COUNT(t.TransactionID) >= 8 AND SUM(Amount) >= 50000 THEN 30
+       WHEN COUNT(t.TransactionID) >= 5 AND SUM(Amount) >= 25000  THEN 20       
         ELSE 0
-     END AS FrequencyRiskScore
+     END AS HighFrequencyHighVolumeRiskScore
     FROM dbo.Transactions_table t
     WHERE t.TransactionDate >= DATEADD(day, -7, GETDATE())
     GROUP BY t.ClientID
@@ -98,7 +97,7 @@ SELECT
      cr.Name,
      cr.Country,
      cr.CountryRiskScore,
-     ISNULL(fr.FrequencyRiskScore, 0) 
+     ISNULL(hfhv.HighFrequencyHighVolumeRiskScore, 0) 
   AS FrequencyRiskScore,  
      ISNULL(st.SingleTxAmountRiskScore, 0)
   AS SingleTxAmountRiskScore,
@@ -108,15 +107,15 @@ SELECT
   AS SmurfingRiskScore,
 
     cr.CountryRiskScore
-    + ISNULL(fr.FrequencyRiskScore, 0)   
+    + ISNULL(hfhv.HighFrequencyHighVolumeRiskScore, 0)   
     + ISNULL(st.SingleTxAmountRiskScore, 0)
     + ISNULL(tt.TransactionTypeRiskScore, 0)
     + ISNULL(sr.SmurfingRiskScore, 0)
 
 AS TotalRiskScore
   FROM CountryRisk cr
-  LEFT JOIN FrequencyRisk fr
-      ON cr.ClientID = fr.ClientID  
+  LEFT JOIN HighFrequencyHighVolumerisk hfhv
+      ON cr.ClientID = hfhv.ClientID  
   LEFT JOIN SingleTxAmountRisk st
       ON cr.ClientID = st.ClientID
   LEFT JOIN TransactionTypeRiskScore tt
