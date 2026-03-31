@@ -23,6 +23,7 @@ GROUP BY
     c.Name,
     c.country
 ),
+
 --High-frequency high-volume risk: frequent transactions with large total amounts in last 7 days
 HighFrequencyHighVolumeRisk AS (
    SELECT
@@ -54,6 +55,7 @@ SingleTxAmountRisk AS (
        FROM dbo.Transactions_table t
        GROUP BY t.ClientID
 ),
+
 --Transaction type risk: highest risk based on transaction type used --by the client
 TransactionTypeRiskScore AS (
    SELECT    
@@ -75,6 +77,7 @@ TransactionTypeRiskScore AS (
           ON t.TransactionTypeID = tt.TransactionTypeID
         GROUP BY t.ClientID
 ),
+
 --Smurfing risk: structured transactions below single-transfer threshold whithin 7 days
 SmurfingRisk AS (
     SELECT
@@ -91,6 +94,7 @@ SmurfingRisk AS (
         GROUP BY t.ClientID
          
 )
+
 --Final risk score calculation: combines all risk indicators into Total risk score--
 SELECT
      cr.ClientID,
@@ -211,8 +215,51 @@ WHERE NOT EXISTS (
     FROM dbo.Alerts_table a
     WHERE a.TransactionID = sc.LastTransactionID
         AND a.Rulecode = 'Smurfing'
+);
+
+--High-frequency high-volume alert generation
+WITH HighFrequencyHighVolumeCandidates AS (
+    SELECT
+        t.ClientID,
+        MAX(t.TransactionID) AS
+LastTransactionID,
+        COUNT(t.TransactionID) AS
+TxCountLast7Days,
+        SUM(t.Amount) AS
+TotalAmountLast7Days
+    FROM dbo.Transactions_table t
+    WHERE t.TransactionDate >= DATEADD(day, -7, GETDATE())
+    GROUP BY t.ClientID
+    HAVING COUNT(t.TransactionID) >= 5
+        AND SUM(t.Amount) >= 25000
 )
- ;WITH CountryRisk AS (
+INSERT INTO dbo.Alerts_table (TransactionID, RuleCode, AlertStatus)
+SELECT
+    h.LastTransactionID,
+    'HighFrequencyHighVolume',
+    'Open'
+FROM HighFrequencyHighVolumeCandidates h
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM dbo.Alerts_table a
+    WHERE a.TransactionID = h.LastTransactionID
+       AND a.RuleCode = 'HighFrequencyHighVolume'
+);   
+
+WITH  CountryRisk AS (
+    SELECT
+        c.ClientID,
+        SUM(r.points) AS
+CountryRiskScore
+    FROM dbo.Clients_table c
+    JOIN dbo.RiskRules_table r
+       ON c.Country = r.RuleValue
+    WHERE r.RuleType = 'Country'
+      AND r.IsActive = 1
+    GROUP BY c.ClientID
+),
+--Total risk score alert
+TotalRiskCandidates AS (
     SELECT
         c.ClientID,
         SUM(r.Points) AS CountryRiskScore
@@ -223,28 +270,14 @@ WHERE NOT EXISTS (
       AND r.IsActive = 1
     GROUP BY c.ClientID
 ),
-FrequencyRisk AS (
+HighFrequencyHighVolumeRisk AS (
     SELECT
         t.ClientID,
         CASE
-            WHEN COUNT(t.TransactionID) >= 10 THEN 20
-            WHEN COUNT(t.TransactionID) >= 6 THEN 15
-            WHEN COUNT(t.TransactionID) >= 3 THEN 10
+            WHEN COUNT(t.TransactionID) >= 8 AND SUM(t.Amount) >= 50000 THEN 30
+            WHEN COUNT(t.TransactionID) >= 5 AND SUM(t.Amount) >= 25000 THEN 20
             ELSE 0
-        END AS FrequencyRiskScore
-    FROM dbo.Transactions_table t
-    WHERE t.TransactionDate >= DATEADD(day, -7, GETDATE())
-    GROUP BY t.ClientID
-),
-Amount7DaysRisk AS (
-    SELECT
-        t.ClientID,
-        CASE
-            WHEN SUM(t.Amount) >= 50000 THEN 20
-            WHEN SUM(t.Amount) >= 25000 THEN 15
-            WHEN SUM(t.Amount) >= 10000 THEN 10
-            ELSE 0
-        END AS Amount7DaysRiskScore
+        END AS HighFrequencyHighVolumeRiskScore
     FROM dbo.Transactions_table t
     WHERE t.TransactionDate >= DATEADD(day, -7, GETDATE())
     GROUP BY t.ClientID
@@ -291,27 +324,22 @@ SmurfingRisk AS (
     HAVING COUNT(*) >= 5
        AND SUM(t.Amount) > 5000
 ),
-
---Total risk score alert
-TotalRiskCandidates AS (
+TotalRiskCandidatesFinal AS (
     SELECT
         c.ClientID,
         MAX(t.TransactionID) AS LastTransactionID,
         ISNULL(cr.CountryRiskScore, 0)
-        + ISNULL(fr.FrequencyRiskScore, 0)
-        + ISNULL(a7.Amount7DaysRiskScore, 0)
-        + ISNULL(st.SingleTxAmountRiskScore, 0)
-        + ISNULL(tt.TransactionTypeRiskScore, 0)
-        + ISNULL(sr.SmurfingRiskScore, 0) AS TotalRiskScore
+      + ISNULL(hfhv.HighFrequencyHighVolumeRiskScore, 0)
+      + ISNULL(st.SingleTxAmountRiskScore, 0)
+      + ISNULL(tt.TransactionTypeRiskScore, 0)
+      + ISNULL(sr.SmurfingRiskScore, 0) AS TotalRiskScore
     FROM dbo.Clients_table c
     LEFT JOIN dbo.Transactions_table t
         ON c.ClientID = t.ClientID
     LEFT JOIN CountryRisk cr
         ON c.ClientID = cr.ClientID
-    LEFT JOIN FrequencyRisk fr
-        ON c.ClientID = fr.ClientID
-    LEFT JOIN Amount7DaysRisk a7
-        ON c.ClientID = a7.ClientID
+    LEFT JOIN HighFrequencyHighVolumeRisk hfhv
+        ON c.ClientID = hfhv.ClientID
     LEFT JOIN SingleTxAmountRisk st
         ON c.ClientID = st.ClientID
     LEFT JOIN TransactionTypeRiskScore tt
@@ -321,33 +349,29 @@ TotalRiskCandidates AS (
     GROUP BY
         c.ClientID,
         cr.CountryRiskScore,
-        fr.FrequencyRiskScore,
-        a7.Amount7DaysRiskScore,
+        hfhv.HighFrequencyHighVolumeRiskScore,
         st.SingleTxAmountRiskScore,
         tt.TransactionTypeRiskScore,
         sr.SmurfingRiskScore
     HAVING
         ISNULL(cr.CountryRiskScore, 0)
-        + ISNULL(fr.FrequencyRiskScore, 0)
-        + ISNULL(a7.Amount7DaysRiskScore, 0)
-        + ISNULL(st.SingleTxAmountRiskScore, 0)
-        + ISNULL(tt.TransactionTypeRiskScore, 0)
-        + ISNULL(sr.SmurfingRiskScore, 0) >= 50
+      + ISNULL(hfhv.HighFrequencyHighVolumeRiskScore, 0)
+      + ISNULL(st.SingleTxAmountRiskScore, 0)
+      + ISNULL(tt.TransactionTypeRiskScore, 0)
+      + ISNULL(sr.SmurfingRiskScore, 0) >= 50
 )
-INSERT INTO dbo.Alerts_table
-(TransactionID, RuleCode, AlertStatus)
+INSERT INTO dbo.Alerts_table (TransactionID, RuleCode, AlertStatus)
 SELECT
     tr.LastTransactionID,
     'HighTotalRisk',
     'Open'
-FROM TotalRiskCandidates tr
+FROM TotalRiskCandidatesFinal tr
 WHERE NOT EXISTS (
     SELECT 1
     FROM dbo.Alerts_table a
     WHERE a.TransactionID = tr.LastTransactionID
       AND a.RuleCode = 'HighTotalRisk'
 );
-
 
 
 
