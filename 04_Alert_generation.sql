@@ -152,6 +152,22 @@ WHERE NOT EXISTS (
       AND a.RuleCode = 'PassThroughRisk'
 );
 
+--Insert high total risk alerts from scoring view
+INSERT INTO dbo.Alerts_table (TransactionID, RuleCode, AlertStatus)
+SELECT
+     s.LastTransactionID,
+     'HighTotalRisk',
+     'Open'
+FROM dbo.vw_TotalRiskScoring s
+WHERE s.TotalRiskScore >= 30
+    AND NOT EXISTS (
+        SELECT 1
+        FROM dbo.Alerts_table a
+        WHERE a.TransactionID = s.LastTransactionID
+           AND a.RuleCode = 'HighTotalRisk'
+    );
+
+
 
 
 

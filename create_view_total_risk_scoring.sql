@@ -60,7 +60,7 @@ SingleTxAmountRisk AS (
 ),
 
 --Transaction type risk: highest risk based on transaction type used --by the client
-TransactionTypeRiskScore AS (
+TransactionTypeRisk AS (
    SELECT    
     t.clientID,
         MAX(   
@@ -126,6 +126,7 @@ SELECT
      cr.ClientID,
      cr.Name,
      cr.Country,
+     MAX(t.TransactionID) AS LastTransactionID,
      cr.CountryRiskScore,
      ISNULL(hfhv.HighFrequencyHighVolumeRiskScore, 0) 
   AS FrequencyRiskScore,  
@@ -147,14 +148,27 @@ SELECT
 
 AS TotalRiskScore
   FROM CountryRisk cr
+  LEFT JOIN Transactions_table t
+      ON cr.ClientID = t.ClientID
   LEFT JOIN HighFrequencyHighVolumerisk hfhv
       ON cr.ClientID = hfhv.ClientID  
   LEFT JOIN SingleTxAmountRisk st
       ON cr.ClientID = st.ClientID
-  LEFT JOIN TransactionTypeRiskScore tt
+  LEFT JOIN TransactionTypeRisk tt
       ON cr.ClientID = tt.ClientID
   LEFT JOIN SmurfingRisk sr
       ON cr.ClientID = sr.ClientID
   LEFT JOIN PassThroughRisk ptr
-      ON cr.ClientID = ptr.ClientID;
+      ON cr.ClientID = ptr.ClientID
+    GROUP BY
+        cr.ClientID,
+        cr.Name,
+        cr.Country,
+        cr.CountryRiskScore,
+
+    hfhv.HighFrequencyHighVolumeRiskScore,
+    st.SingleTxAmountRiskScore,
+    tt.TransactionTypeRiskScore,
+    sr.SmurfingRiskScore,
+    ptr.PassThroughRiskScore
 GO
