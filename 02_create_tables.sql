@@ -71,6 +71,7 @@ CREATE TABLE dbo.Transactions_table (
     Amount DECIMAL(18,2),
     Currency NVARCHAR(5) NOT NULL DEFAULT 'EUR',
     TransactionTypeID INT NOT NULL,
+    Direction NVARCHAR(50) NOT NULL,
     Status NVARCHAR(20) DEFAULT 'Pending',
     DestinationCountry NVARCHAR(100),      
     TransactionDate datetime NOT NULL,
